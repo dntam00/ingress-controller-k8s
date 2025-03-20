@@ -2,14 +2,13 @@ package watcher
 
 import (
 	"context"
+	"custom-ingress/model"
 	coreV1 "k8s.io/api/core/v1"
 	networkV1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/rest"
 	"log"
-	"os"
-	"path"
 )
 
 type Watcher struct {
@@ -17,15 +16,9 @@ type Watcher struct {
 }
 
 func NewWatcher() *Watcher {
-	home, err := os.UserHomeDir()
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err)
-	}
-
-	config, err := clientcmd.BuildConfigFromFlags("", path.Join(home, ".kube/config"))
-
-	if err != nil {
-		panic(err.Error())
 	}
 
 	client, err := kubernetes.NewForConfig(config)
@@ -35,18 +28,38 @@ func NewWatcher() *Watcher {
 	return &Watcher{k8sClient: client}
 }
 
-func (w *Watcher) WatchIngress() {
+func (w *Watcher) WatchIngress(resCh chan map[string]model.IngressRules) {
 	watch, err := w.k8sClient.NetworkingV1().Ingresses("default").Watch(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
 	for event := range watch.ResultChan() {
+		ingresses := make(map[string]model.IngressRules)
 		ingress, ok := event.Object.(*networkV1.Ingress)
 		if !ok {
 			log.Printf("unexpected type %T\n", event.Object)
 			continue
 		}
-		log.Printf("event type: %s, rules: %+v, labels: %+v", event.Type, ingress.Spec.Rules[0], ingress.ObjectMeta.Labels)
+		for _, rule := range ingress.Spec.Rules {
+			host := rule.Host
+			rules := make([]model.IngressRule, 0)
+			for _, path := range rule.HTTP.Paths {
+				pathStr := path.Path
+				serviceName := path.Backend.Service.Name
+				servicePort := path.Backend.Service.Port.Number
+				rules = append(rules, model.IngressRule{
+					Path:    pathStr,
+					Service: serviceName,
+					Port:    servicePort,
+				})
+			}
+			ingresses[host] = model.IngressRules{
+				Host:  host,
+				Rules: rules,
+			}
+			log.Printf("ingress event type: %s, host: %+v", event.Type, rule.Host)
+		}
+		resCh <- ingresses
 	}
 }
 

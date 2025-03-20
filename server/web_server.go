@@ -2,7 +2,7 @@ package server
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -28,8 +28,10 @@ func (s *Server) Listen() {
 		IdleTimeout: s.IdleTimeout,
 	}
 
+	log.Println("Start listening on", s.Addr)
+
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		fmt.Println("failed to start server")
+		log.Println("failed to start server")
 		return
 	}
 }

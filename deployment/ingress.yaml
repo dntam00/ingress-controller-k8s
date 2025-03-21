@@ -8,11 +8,11 @@ spec:
     - host: kaixin.local
       http:
         paths:
-          - path: /
+          - path: /v2
             pathType: Prefix
             backend:
               service:
-                name: custom-webserver-service
+                name: custom-webserver-service-v2
                 port:
                   number: 8080
           - path: /

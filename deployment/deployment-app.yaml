@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  name: custom-webserver-v2
+  labels:
+    app: custom-webserver-v2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: custom-webserver-v2
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: custom-webserver-v2
+    spec:
+      containers:
+        - image: k3d-kaixin-registry:12345/simpleapp:v2.0
+          imagePullPolicy: Always
+          name: custom-webserver-v2
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: custom-webserver-service-v2
+spec:
+  ports:
+    - port: 8080
+      targetPort: 7888
+      protocol: TCP
+  selector:
+    app: custom-webserver-v2
+  sessionAffinity: None

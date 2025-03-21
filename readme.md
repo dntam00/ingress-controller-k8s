@@ -1,6 +1,18 @@
 ## Simple ingress controller
 
-TBD
+```bash
+docker build -f ./deployment/Dockerfile -t kaixin-registry:12345/gateway:v1.0 .
+kubectl apply -f ./deployment/deployment-app.yaml
+kubectl apply -f ./deployment/deployment-ingress-controller.yaml
+kubectl apply -f ./deployment/ingress.yaml
+```
+
+Test the ingress controller
+
+```bash
+curl --header "HOST: kaixin.local" 127.0.0.1:8083/v2/endpoint
+```
+![custom ingress controller result](./images/custom-ingress-controller.png)
 
 ## References
 

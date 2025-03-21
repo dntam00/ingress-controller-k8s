@@ -11,3 +11,8 @@ type IngressRule struct {
 	Service   string
 	Port      int32
 }
+
+type IngressEvent struct {
+	Type    string
+	Ingress map[string]IngressRules
+}

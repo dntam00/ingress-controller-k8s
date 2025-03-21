@@ -15,6 +15,12 @@ const (
 	defaultNs = "default"
 )
 
+const (
+	ADDED    = "ADDED"
+	MODIFIED = "MODIFIED"
+	DELETED  = "DELETED"
+)
+
 type Watcher struct {
 	k8sClient *kubernetes.Clientset
 }
@@ -32,12 +38,12 @@ func NewWatcher() *Watcher {
 	return &Watcher{k8sClient: client}
 }
 
-func (w *Watcher) WatchIngress() chan map[string]model.IngressRules {
+func (w *Watcher) WatchIngress() chan model.IngressEvent {
 	watchEvent, err := w.k8sClient.NetworkingV1().Ingresses(defaultNs).Watch(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
-	c := make(chan map[string]model.IngressRules)
+	c := make(chan model.IngressEvent)
 	go func() {
 		for event := range watchEvent.ResultChan() {
 			ingresses := make(map[string]model.IngressRules)
@@ -67,7 +73,7 @@ func (w *Watcher) WatchIngress() chan map[string]model.IngressRules {
 				}
 				log.Printf("ingress event type: %s, host: %+v", event.Type, rule.Host)
 			}
-			c <- ingresses
+			c <- model.IngressEvent{Type: string(event.Type), Ingress: ingresses}
 		}
 	}()
 	return c

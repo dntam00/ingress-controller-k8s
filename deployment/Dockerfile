@@ -14,7 +14,7 @@ COPY go.* ./
 RUN go mod download
 
 # Copy local code to the container image.
-COPY . ./
+COPY .. ./
 
 # Build the binary.
 RUN go build -v -o bin ./cmd/main.go

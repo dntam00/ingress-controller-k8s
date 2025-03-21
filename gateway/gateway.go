@@ -36,12 +36,18 @@ func (g *Gateway) Start() {
 					log.Println("watcher channel closed")
 					return
 				}
-				for _, r := range rules {
-					slices.SortFunc(r.Rules, func(a, b model.IngressRule) int {
-						return len(b.Path) - len(a.Path)
-					})
+				if rules.Type == watcher.ADDED || rules.Type == watcher.MODIFIED {
+					for _, r := range rules.Ingress {
+						slices.SortFunc(r.Rules, func(a, b model.IngressRule) int {
+							return len(b.Path) - len(a.Path)
+						})
+						g.rules[r.Host] = r
+					}
+				} else if rules.Type == watcher.DELETED {
+					for host := range rules.Ingress {
+						delete(g.rules, host)
+					}
 				}
-				g.rules = rules
 				log.Println("gateway update rules:", g.rules)
 			}
 		}

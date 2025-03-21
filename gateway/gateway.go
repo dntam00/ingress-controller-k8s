@@ -27,16 +27,25 @@ func NewGateway(watcher *watcher.Watcher, httpClient *http.Client) *Gateway {
 }
 
 func (g *Gateway) Start() {
-	c := make(chan map[string]model.IngressRules)
+	c := g.watcher.WatchIngress()
 	go func() {
 		for {
 			select {
-			case rules := <-c:
+			case rules, ok := <-c:
+				if !ok {
+					log.Println("watcher channel closed")
+					return
+				}
+				for _, r := range rules {
+					slices.SortFunc(r.Rules, func(a, b model.IngressRule) int {
+						return len(b.Path) - len(a.Path)
+					})
+				}
 				g.rules = rules
+				log.Println("gateway update rules:", g.rules)
 			}
 		}
 	}()
-	g.watcher.WatchIngress(c)
 }
 
 func (g *Gateway) Stop() {
@@ -45,31 +54,26 @@ func (g *Gateway) Stop() {
 
 func (g *Gateway) Route(writer http.ResponseWriter, request *http.Request) {
 	log.Println("start routing request", request.URL.Path)
-
 	host := request.Host
 	rules, ok := g.rules[host]
 	if !ok {
-		log.Println("no rules found for host: ", host)
+		log.Println("no rules found for host:", host)
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	}
 	ingressRules := rules.Rules
-	clone := slices.Clone(ingressRules)
-	slices.SortFunc(clone, func(i, j model.IngressRule) int {
-		return len(j.Path) - len(i.Path)
-	})
-	for _, rule := range clone {
+	for _, rule := range ingressRules {
 		if strings.HasPrefix(request.URL.Path, rule.Path) {
-			// <service-name>.<namespace-name>.svc.cluster.local
-			target := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d", "http", rule.Service, "default", rule.Port)
+			// service address pattern: <service-name>.<namespace-name>.svc.cluster.local
+			target := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d", "http", rule.Service, rule.Namespace, rule.Port)
 			g.request(request, writer, target)
 			return
 		}
 	}
+	log.Println("no path rule found for host: ", host)
 }
 
 func (g *Gateway) request(orgRequest *http.Request, orgResponseWriter http.ResponseWriter, target string) {
-	log.Println("forwarding request to: ", target)
 	req, err := http.NewRequestWithContext(context.Background(), orgRequest.Method, target+orgRequest.URL.Path, nil)
 	if err != nil {
 		log.Println("error when forwarding request: ", err)
@@ -82,6 +86,9 @@ func (g *Gateway) doRequest(req *http.Request, orgResponseWriter http.ResponseWr
 	res, err := g.httpClient.Do(req)
 	if err != nil {
 		fmt.Println("error call api: ", err)
+		orgResponseWriter.WriteHeader(http.StatusBadGateway)
+		_, _ = orgResponseWriter.Write([]byte(err.Error()))
+		return
 	}
 
 	if res != nil {

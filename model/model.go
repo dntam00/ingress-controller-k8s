@@ -6,7 +6,8 @@ type IngressRules struct {
 }
 
 type IngressRule struct {
-	Path    string
-	Service string
-	Port    int32
+	Namespace string
+	Path      string
+	Service   string
+	Port      int32
 }

@@ -1,12 +1,11 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   namespace: default
   name: kaixin-gateway
   labels:
     app: kaixin-gateway
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: kaixin-gateway

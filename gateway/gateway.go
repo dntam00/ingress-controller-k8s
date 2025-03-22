@@ -39,7 +39,7 @@ func (g *Gateway) Start() {
 						slices.SortFunc(r.Rules, func(a, b model.IngressRule) int {
 							return len(b.Path) - len(a.Path)
 						})
-						g.route.UpdateRoute(r.Host, r)
+						g.route.UpdateRoute(r.Host, *r)
 					}
 				} else if rules.Type == watcher.DELETED {
 					for host := range rules.Ingress {
@@ -54,6 +54,10 @@ func (g *Gateway) Start() {
 
 func (g *Gateway) Stop() {
 	g.watcher.Stop()
+}
+
+func (g *Gateway) GetRoute() *Route {
+	return g.route
 }
 
 func (g *Gateway) ServeHTTP(writer http.ResponseWriter, request *http.Request) {

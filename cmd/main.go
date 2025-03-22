@@ -19,7 +19,10 @@ func main() {
 	k8sGateway.Start()
 
 	handler := server.NewGatewayHandler(k8sGateway)
-	gatewayServer := server.NewServer(":8085", handler.BuildGatewayHandler(), 10*time.Second)
+
+	// TODO: load tls cert to remove this workaround
+	time.Sleep(1 * time.Second)
+	gatewayServer := server.NewServer(":8085", handler.BuildGatewayHandler(), 10*time.Second, k8sGateway)
 	gatewayServer.Listen()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

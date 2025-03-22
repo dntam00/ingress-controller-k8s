@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"crypto/tls"
 	"custom-ingress/model"
 	"errors"
 	"fmt"
@@ -48,4 +49,9 @@ func (r *Route) UpdateRoute(host string, rules model.IngressRules) {
 
 func (r *Route) DeleteRoute(host string) {
 	delete(r.table, host)
+}
+
+func (r *Route) GetCert(host string) *tls.Certificate {
+	rule := r.table[host]
+	return rule.Cert
 }

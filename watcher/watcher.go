@@ -2,13 +2,17 @@ package watcher
 
 import (
 	"context"
+	"crypto/tls"
 	"custom-ingress/model"
 	networkV1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"log"
+	"os"
+	"path"
 )
 
 const (
@@ -25,8 +29,23 @@ type Watcher struct {
 	k8sClient *kubernetes.Clientset
 }
 
+func localConfig() (*rest.Config, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", path.Join(home, ".kube/config"))
+
+	if err != nil {
+		panic(err.Error())
+	}
+	return config, nil
+}
+
 func NewWatcher() *Watcher {
 	config, err := rest.InClusterConfig()
+	//config, err := localConfig()
 	if err != nil {
 		panic(err)
 	}
@@ -44,9 +63,10 @@ func (w *Watcher) WatchIngress() chan model.IngressEvent {
 		panic(err.Error())
 	}
 	c := make(chan model.IngressEvent)
+
 	go func() {
 		for event := range watchEvent.ResultChan() {
-			ingresses := make(map[string]model.IngressRules)
+			ingresses := make(map[string]*model.IngressRules)
 			ingress, ok := event.Object.(*networkV1.Ingress)
 			if !ok {
 				log.Printf("unexpected type %T\n", event.Object)
@@ -67,12 +87,28 @@ func (w *Watcher) WatchIngress() chan model.IngressEvent {
 						Port:      servicePort,
 					})
 				}
-				ingresses[host] = model.IngressRules{
+				ingresses[host] = &model.IngressRules{
 					Host:  host,
 					Rules: rules,
 				}
 				log.Printf("ingress event type: %s, host: %+v", event.Type, rule.Host)
 			}
+
+			for _, tlsRule := range ingress.Spec.TLS {
+				hosts := tlsRule.Hosts
+				secretName := tlsRule.SecretName
+				secret, err := w.k8sClient.CoreV1().Secrets(ingress.Namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+				if err != nil {
+					log.Printf("error getting secret %s: %v", secretName, err)
+					continue
+				}
+				cert, err := tls.X509KeyPair(secret.Data["tls.crt"], secret.Data["tls.key"])
+				for _, host := range hosts {
+					existing := ingresses[host]
+					existing.Cert = &cert
+				}
+			}
+
 			c <- model.IngressEvent{Type: string(event.Type), Ingress: ingresses}
 		}
 	}()

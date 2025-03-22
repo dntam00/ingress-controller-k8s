@@ -22,3 +22,8 @@ spec:
                 name: custom-webserver-service
                 port:
                   number: 8080
+
+  tls:
+    - hosts:
+        - kaixin.local
+      secretName: tls-cert

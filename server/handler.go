@@ -17,7 +17,7 @@ func NewGatewayHandler(k8sGateway *gateway.Gateway) *GatewayHandler {
 func (handler *GatewayHandler) BuildGatewayHandler() *mux.Router {
 	r := mux.NewRouter()
 	r.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handler.k8sGateway.Route(writer, request)
+		handler.k8sGateway.ServeHTTP(writer, request)
 	}).Methods(http.MethodGet, http.MethodPost, http.MethodHead, http.MethodOptions)
 	return r
 }

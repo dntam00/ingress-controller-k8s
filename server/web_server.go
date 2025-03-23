@@ -36,8 +36,9 @@ func (s *Server) Listen() {
 
 	srv.TLSConfig = &tls.Config{
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			cert := s.k8sGateWay.GetRoute().GetCert("kaixin.local")
+			cert := s.k8sGateWay.GetRoute().GetCert(info.ServerName)
 			if cert == nil {
+				log.Printf("No certificate found for server %s", info.ServerName)
 				return nil, errors.New("cert not found")
 			}
 			return cert, nil

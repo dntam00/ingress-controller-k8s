@@ -11,16 +11,14 @@ import (
 )
 
 type Gateway struct {
-	watcher    *watcher.Watcher
-	route      *Route
-	httpClient *http.Client
+	watcher *watcher.Watcher
+	route   *Route
 }
 
-func NewGateway(watcher *watcher.Watcher, httpClient *http.Client) *Gateway {
+func NewGateway(watcher *watcher.Watcher) *Gateway {
 	return &Gateway{
-		watcher:    watcher,
-		route:      NewRoute(),
-		httpClient: httpClient,
+		watcher: watcher,
+		route:   NewRoute(),
 	}
 }
 
